@@ -1,0 +1,22 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Progmasoft <support@progmasoft.com>
+# SPDX-License-Identifier: MIT-0
+#
+# Runs one fuzz target for six hours: fuzz-run <project>-<target>, as the
+# instance of progmasoft-fuzz@.service names it. New inputs go to the working
+# corpus, the kept corpus of this repository is read as seeds, and a crash
+# writes its input to crashes/. systemd starts it again afterwards, with the
+# binary the daily build installed.
+set -eu
+root=/var/lib/progmasoft-fuzz
+project=${1%%-*}
+target=${1#*-}
+binary=$root/bin/$project/fuzz_$target
+work=$root/corpus/$project/$target
+kept=$root/repo/$project/$target/corpus
+crashes=$root/crashes/$project/$target
+mkdir -p "$work" "$kept" "$crashes"
+export ASAN_OPTIONS=detect_leaks=1:abort_on_error=1
+export UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1
+exec "$binary" -max_total_time=21600 -timeout=10 -rss_limit_mb=1536 \
+	-artifact_prefix="$crashes/" -print_final_stats=1 "$work" "$kept"

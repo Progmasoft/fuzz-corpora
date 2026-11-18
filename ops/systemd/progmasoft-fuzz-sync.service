@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Progmasoft <support@progmasoft.com>
+# SPDX-License-Identifier: MIT-0
+
+[Unit]
+Description=Keep the fuzzing corpora in Progmasoft/fuzz-corpora
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=fuzz
+Group=fuzz
+ExecStart=/usr/local/libexec/progmasoft-fuzz/fuzz-sync
+Nice=19
+CPUWeight=10
+IOWeight=10
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/progmasoft-fuzz

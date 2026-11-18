@@ -1,0 +1,36 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Progmasoft <support@progmasoft.com>
+# SPDX-License-Identifier: MIT-0
+#
+# Builds the libFuzzer targets of Catch3 from its devel branch with ASan and
+# UBSan, and installs them where the fuzzing services start them. Runs as the
+# fuzz user, once a day.
+set -eu
+root=/var/lib/progmasoft-fuzz
+src=$root/src/catch3
+build=$root/build/catch3
+bin=$root/bin/catch3
+
+if [ -d "$src/.git" ]; then
+	git -C "$src" fetch -q origin devel
+	git -C "$src" checkout -q --detach FETCH_HEAD
+else
+	git clone -q --branch devel https://github.com/Progmasoft/catch3.git "$src"
+fi
+
+cmake -S "$src" -B "$build" -G Ninja \
+	-DCMAKE_BUILD_TYPE=RelWithDebInfo \
+	-DCMAKE_CXX_COMPILER=clang++ \
+	-DCMAKE_CXX_FLAGS="-fsanitize=fuzzer-no-link,address,undefined -fno-sanitize-recover=undefined" \
+	-DCATCH3_DEVELOPMENT_BUILD=ON -DCATCH3_BUILD_FUZZERS=ON \
+	-DCATCH3_BUILD_TESTING=OFF -DCATCH3_BUILD_EXAMPLES=OFF \
+	-DCATCH3_BUILD_EXTRA_TESTS=OFF -DCATCH3_ENABLE_WERROR=OFF -DBUILD_TESTING=OFF >/dev/null
+cmake --build "$build" --target fuzz_TestSpecParser fuzz_ProjectConfig fuzz_RunnerJson fuzz_RunnerOptions >/dev/null
+
+mkdir -p "$bin"
+for target in TestSpecParser ProjectConfig RunnerJson RunnerOptions; do
+	# A running fuzzer keeps the old file; the next start takes the new one.
+	install -m 0755 "$build/fuzzing/fuzz_$target" "$bin/fuzz_$target.new"
+	mv -f "$bin/fuzz_$target.new" "$bin/fuzz_$target"
+done
+echo "catch3 $(git -C "$src" rev-parse --short HEAD) built"

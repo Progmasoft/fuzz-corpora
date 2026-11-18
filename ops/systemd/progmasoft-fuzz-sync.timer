@@ -1,0 +1,13 @@
+# SPDX-FileCopyrightText: 2026 Progmasoft <support@progmasoft.com>
+# SPDX-License-Identifier: MIT-0
+
+[Unit]
+Description=Keep the fuzzing corpora in Progmasoft/fuzz-corpora, daily
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,33 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Progmasoft <support@progmasoft.com>
+# SPDX-License-Identifier: MIT-0
+#
+# Once a day: merges the working corpus of each target into the kept corpus
+# of this repository, keeping only inputs that add coverage, copies the crash
+# inputs, and pushes the result to Progmasoft/fuzz-corpora.
+set -eu
+root=/var/lib/progmasoft-fuzz
+repo=$root/repo
+export GIT_SSH_COMMAND="ssh -i $root/.ssh/fuzz-corpora -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+
+git -C "$repo" pull -q --ff-only origin main
+for target in TestSpecParser ProjectConfig RunnerJson RunnerOptions; do
+	binary=$root/bin/catch3/fuzz_$target
+	kept=$repo/catch3/$target/corpus
+	merged=$root/merge/catch3/$target
+	rm -rf "$merged"
+	mkdir -p "$merged" "$kept" "$root/corpus/catch3/$target"
+	"$binary" -merge=1 -rss_limit_mb=1536 "$merged" "$kept" "$root/corpus/catch3/$target" >/dev/null 2>&1
+	rm -rf "$kept"
+	mv "$merged" "$kept"
+	if [ -n "$(ls -A "$root/crashes/catch3/$target" 2>/dev/null)" ]; then
+		mkdir -p "$repo/catch3/$target/crashes"
+		cp -n "$root/crashes/catch3/$target/"* "$repo/catch3/$target/crashes/"
+	fi
+done
+git -C "$repo" add --all catch3
+if ! git -C "$repo" diff --cached --quiet; then
+	git -C "$repo" -c user.name="Progmasoft fuzzing" -c user.email=support@progmasoft.com \
+		commit -q -m "Keep the corpora of $(date -u +%Y-%m-%d)"
+	git -C "$repo" push -q origin HEAD:main
+fi
