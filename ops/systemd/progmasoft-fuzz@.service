@@ -19,6 +19,9 @@ CPUWeight=10
 CPUQuota=60%
 IOWeight=10
 MemoryMax=2G
+# libFuzzer reports each new input; the journal keeps a sample, crashes in full.
+LogRateLimitIntervalSec=60s
+LogRateLimitBurst=200
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectHome=yes
